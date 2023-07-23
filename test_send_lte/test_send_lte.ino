@@ -4,15 +4,17 @@
 SoftwareSerial sim7600(2, 3);
 int i=0;
 
+const int ON_OFF_PIN_LTE = 7;
+
 void setup() {
   // Start the Serial USB communication
-  Serial.begin(9600);
+  Serial.begin(57600);
 
   // Start the SIM7600 module communication
   sim7600.begin(9600);
 
   // ON/OFF signal for the sim7600
-  pinMode(4, OUTPUT);
+  pinMode(7, OUTPUT);
 
   sim7600.flush();
 }
@@ -70,9 +72,9 @@ bool lte_power_on() {
 
   if(sendCommand("AT") == "")
   {
-    digitalWrite(4, HIGH);
+    digitalWrite(ON_OFF_PIN_LTE, HIGH);
     delay(2000);
-    digitalWrite(4, LOW);
+    digitalWrite(ON_OFF_PIN_LTE, LOW);
     delay(25000);    
   }
   else
@@ -94,8 +96,8 @@ bool lte_power_on() {
 
 void lte_power_off() {
   Serial.println("Shut down LTE module...");
-  digitalWrite(4, HIGH);
+  digitalWrite(ON_OFF_PIN_LTE, HIGH);
   delay(3000);
-  digitalWrite(4, LOW);
+  digitalWrite(ON_OFF_PIN_LTE, LOW);
   delay(25000);    
 }
