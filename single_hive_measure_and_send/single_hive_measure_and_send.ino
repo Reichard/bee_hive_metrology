@@ -3,6 +3,15 @@
 #include <EEPROM.h>
 #endif
 #include <SoftwareSerial.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Data wire is plugged into pin 2 on the Arduino
+#define ONE_WIRE_BUS 10
+// Setup a OneWire instance to communicate with any OneWire devices
+OneWire oneWire(ONE_WIRE_BUS);
+// Pass OneWire reference to Dallas Temperature
+DallasTemperature sensors(&oneWire);
 
 //pins:
 const int HX711_dout = 4; //mcu > HX711 dout pin
@@ -13,6 +22,7 @@ HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
 const int calVal_eepromAdress = 0;
 unsigned long t = 0;
+const bool useLTE = true;
 
 // Define the RX and TX pins for the SIM7600 module
 SoftwareSerial sim7600(2, 3);
@@ -44,6 +54,11 @@ void setup() {
     LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
     Serial.println("Startup is complete");
   }
+  sensors.begin(); // Start up the library
+
+  // Turn off sim7600
+  //lte_power_off();
+
   delay(300);
 }
 
@@ -51,7 +66,30 @@ void loop() {
 
   //--------------Measurements---------------------------
   int cur_weight = -1;
-  static boolean newDataReady = 0;
+  int cur_temp= -100;
+  bool newDataReady = false;
+  int count_measurements = 0;
+  t = millis();
+  //getting X new data points (have to move out the moving average)
+  Serial.println("Getting current weight...");
+  while (count_measurements < 20)
+  {
+    // check for new data/start next conversion:
+    if (LoadCell.update()) newDataReady = true;
+
+    // get smoothed value from the dataset:
+    if (newDataReady) {
+      cur_weight = LoadCell.getData();
+      //Serial.print("Load_cell output val: ");
+      //Serial.println(cur_weight);
+      newDataReady = 0;
+      count_measurements++;
+    }
+    delay(200);
+  }
+
+  // get the last measurment used to save
+
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
 
@@ -61,12 +99,22 @@ void loop() {
     Serial.print("Load_cell output val: ");
     Serial.println(cur_weight);
     newDataReady = 0;
-    t = millis();
+  }
 
+  // call sensors.requestTemperatures() to issue a global temperature
+  // request to all devices on the bus
+  // Send the command to get temperature readings
+  sensors.requestTemperatures();
+  Serial.println("Temperature is: " + String(sensors.getTempCByIndex(0)) + "°C");
+  cur_temp = (int) sensors.getTempCByIndex(0);
+
+  if(useLTE)
+  {
     //--------------LTE communication----------------------
 
     // Define the URL for the GET request
-    String url = "https://api.thingspeak.com/update?api_key=H6RF2QIRKQC1XK2P&field1="+String(cur_weight);
+    //String url = "https://api.thingspeak.com/update?api_key=H6RF2QIRKQC1XK2P&field1="+String(cur_weight);
+    String url = "https://api.thingspeak.com/update?api_key=H6RF2QIRKQC1XK2P&&field1="+String(cur_weight)+"&field2="+String(cur_temp);
     // Turn on sim7600
     lte_power_on();
     //sendCommand("ATE0");
@@ -87,13 +135,14 @@ void loop() {
 
     // Turn off sim7600
     lte_power_off();
+    Serial.println("LTE data sent");
     unsigned long time_diff = 600000 - (millis() - t);
     delay(time_diff);
     i = i + 1;
 
     }
   else 
-  {Serial.println("Load_cell not ready");}
+  {Serial.println("Not sending LTE data");}
 }
 
 
