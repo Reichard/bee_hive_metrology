@@ -66,7 +66,7 @@ void loop() {
 
   //--------------Measurements---------------------------
   int cur_weight = -1;
-  int cur_temp= -100;
+  float cur_temp= -100;
   bool newDataReady = false;
   int count_measurements = 0;
   t = millis();
@@ -106,7 +106,7 @@ void loop() {
   // Send the command to get temperature readings
   sensors.requestTemperatures();
   Serial.println("Temperature is: " + String(sensors.getTempCByIndex(0)) + "°C");
-  cur_temp = (int) sensors.getTempCByIndex(0);
+  cur_temp = sensors.getTempCByIndex(0);
 
   if(useLTE)
   {
