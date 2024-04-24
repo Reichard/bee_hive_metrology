@@ -72,26 +72,16 @@ void loop() {
   t = millis();
   //getting X new data points (have to move out the moving average)
   Serial.println("Getting current weight...");
-  while (count_measurements < 20)
+
+  LoadCell.refreshDataSet(); 
+
+  while (!newDataReady)
   {
     // check for new data/start next conversion:
     if (LoadCell.update()) newDataReady = true;
-
-    // get smoothed value from the dataset:
-    if (newDataReady) {
-      cur_weight = LoadCell.getData();
-      //Serial.print("Load_cell output val: ");
-      //Serial.println(cur_weight);
-      newDataReady = 0;
-      count_measurements++;
-    }
-    delay(200);
   }
 
   // get the last measurment used to save
-
-  // check for new data/start next conversion:
-  if (LoadCell.update()) newDataReady = true;
 
   // get smoothed value from the dataset:
   if (newDataReady) {
@@ -105,8 +95,9 @@ void loop() {
   // request to all devices on the bus
   // Send the command to get temperature readings
   sensors.requestTemperatures();
-  Serial.println("Temperature is: " + String(sensors.getTempCByIndex(0)) + "°C");
   cur_temp = sensors.getTempCByIndex(0);
+  Serial.println("Temperature is: " + String(cur_temp) + "°C");
+  
 
   if(useLTE)
   {
