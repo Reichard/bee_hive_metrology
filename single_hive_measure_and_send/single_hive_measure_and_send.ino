@@ -14,8 +14,8 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 //pins:
-const int HX711_dout = 4; //mcu > HX711 dout pin
-const int HX711_sck = 5; //mcu > HX711 sck pin
+const int HX711_dout = 2; //mcu > HX711 dout pin
+const int HX711_sck = 3; //mcu > HX711 sck pin
 
 //HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
@@ -25,9 +25,16 @@ unsigned long t = 0;
 const bool useLTE = true;
 
 // Define the RX and TX pins for the SIM7600 module
-SoftwareSerial sim7600(2, 3);
+SoftwareSerial sim7600(4, 5);
 const int ON_OFF_PIN_LTE = 7;
 int i=0;
+
+unsigned long previousMillis = 0;   // Variable to store the last time the function was called
+const long interval = 120000;         // Interval in milliseconds (5 seconds in this example)
+
+long cur_weight = -1;
+float cur_temp= -100;
+bool newDataReady = false;
 
 void setup() {
   // Start the Serial USB communication
@@ -60,43 +67,59 @@ void setup() {
   //lte_power_off();
 
   delay(300);
+
+  attachInterrupt(digitalPinToInterrupt(HX711_dout), interrupt, FALLING);
+}
+
+//interrupt routine:
+void interrupt() {
+  LoadCell.update();
+  cur_weight = LoadCell.getData();
+  //Serial.print("Load_cell output val: ");
+  //Serial.println(cur_weight);
 }
 
 void loop() {
 
-  //--------------Measurements---------------------------
-  int cur_weight = -1;
-  float cur_temp= -100;
-  bool newDataReady = false;
-  int count_measurements = 0;
   t = millis();
+  //--------------Measurements---------------------------
+  
+  
   //getting X new data points (have to move out the moving average)
-  Serial.println("Getting current weight...");
+  //Serial.println("Getting current weight...");
 
-  LoadCell.refreshDataSet(); 
+  //LoadCell.refreshDataSet(); 
 
-  while (!newDataReady)
-  {
+  //while (!newDataReady)
+  //{
     // check for new data/start next conversion:
-    if (LoadCell.update()) newDataReady = true;
-  }
+    //if (LoadCell.update()) newDataReady = true;
+    //newDataReady = true;
+  //}
 
   // get the last measurment used to save
 
   // get smoothed value from the dataset:
-  if (newDataReady) {
-    cur_weight = LoadCell.getData();
-    Serial.print("Load_cell output val: ");
-    Serial.println(cur_weight);
-    newDataReady = 0;
-  }
+  // if (newDataReady) {
+  //   cur_weight = LoadCell.getData();
+  //   Serial.print("Load_cell output val: ");
+  //   Serial.println(cur_weight);
+  //   newDataReady = 0;
+  // }
+
+  //cur_weight = LoadCell.getData();
+  //Serial.print("Load_cell output val: ");
+  //Serial.println(cur_weight);
+  //newDataReady = 0;
+
+  //delay(1000);
 
   // call sensors.requestTemperatures() to issue a global temperature
   // request to all devices on the bus
   // Send the command to get temperature readings
   sensors.requestTemperatures();
   cur_temp = sensors.getTempCByIndex(0);
-  Serial.println("Temperature is: " + String(cur_temp) + "°C");
+  //Serial.println("Temperature is: " + String(cur_temp) + "°C");
   
 
   if(useLTE)
@@ -125,15 +148,18 @@ void loop() {
     sendCommand("AT+CGACT=0,1");
 
     // Turn off sim7600
-    lte_power_off();
     Serial.println("LTE data sent");
+    lte_power_off();
+    
     unsigned long time_diff = 600000 - (millis() - t);
+    Serial.println(time_diff);
     delay(time_diff);
-    i = i + 1;
 
     }
   else 
-  {Serial.println("Not sending LTE data");}
+  {
+    //Serial.println("Not sending LTE data");
+  }
 }
 
 
@@ -169,6 +195,7 @@ bool lte_power_on() {
   {
     Serial.println("LTE module seems to be already on");
   }
+  delay(100);
 
   if(sendCommand("AT").indexOf("OK") > 0)
   {
@@ -187,5 +214,5 @@ void lte_power_off() {
   digitalWrite(ON_OFF_PIN_LTE, HIGH);
   delay(3000);
   digitalWrite(ON_OFF_PIN_LTE, LOW);
-  delay(25000);    
+  delay(15000);    
 }
